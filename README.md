@@ -53,15 +53,15 @@ second_model/
 ```python
 from src.data_preprocessing import preprocess_pipeline
 
-preprocess_pipeline(
-    input_path='data.csv',
-    output_path='processed_data.csv',
+processed_data = preprocess_pipeline(
+    input_path='data/raw/input_data.csv',
+    output_path='data/processed/processed_data.csv',
     numeric_columns=['feature1', 'feature2'],
     categorical_columns=['category1', 'category2'],
     target_column='duration',
     date_column='date',
     identifier_columns=['company_id'],
-    group_by='company_id'
+    group_by=['company_id', 'region']
 )
 ```
 
@@ -90,7 +90,6 @@ risk_types, durations = model.predict(X_test)
 # Evaluate model
 metrics = model.evaluate(X_test, y1_test, y2_test)
 ```
-
 ## Configuration
 
 Key configuration parameters can be found in `src/constants.py`:

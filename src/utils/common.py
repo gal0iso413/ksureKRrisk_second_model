@@ -155,4 +155,28 @@ def format_number(
     """
     if percentage:
         return f"{number:.{decimals}f}%"
-    return f"{number:.{decimals}f}" 
+    return f"{number:.{decimals}f}"
+
+def safe_load_csv(file_path, encoding="utf-8", **kwargs):
+    """Safely load a CSV file and return a DataFrame."""
+    file_path = Path(file_path)
+    if not file_path.exists():
+        raise FileNotFoundError(f"CSV file not found: {file_path}")
+    try:
+        return pd.read_csv(file_path, encoding=encoding, **kwargs)
+    except Exception as e:
+        raise ValueError(f"Failed to load CSV: {e}")
+
+def safe_save_csv(df, file_path, encoding="utf-8", **kwargs):
+    """Safely save a DataFrame to a CSV file."""
+    file_path = Path(file_path)
+    try:
+        df.to_csv(file_path, encoding=encoding, index=False, **kwargs)
+    except Exception as e:
+        raise ValueError(f"Failed to save CSV: {e}")
+
+def clean_column_names(df):
+    """Clean DataFrame column names by stripping whitespace and lowering case."""
+    df = df.copy()
+    df.columns = [str(col).strip().lower().replace(' ', '_') for col in df.columns]
+    return df 

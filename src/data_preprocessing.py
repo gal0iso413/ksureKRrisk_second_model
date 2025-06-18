@@ -15,12 +15,12 @@ from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.impute import SimpleImputer
 
 # Import project utilities
-from utils.logging_config import get_logger
-from utils.common import (
+from src.utils.logging_config import get_logger
+from src.utils.common import (
     safe_load_csv, safe_save_csv, clean_column_names,
     standardize_error_handling, create_directory_if_not_exists
 )
-from constants import (
+from src.constants import (
     DEFAULT_RANDOM_STATE, DEFAULT_SCALER_TYPE,
     DEFAULT_ENCODING_METHOD, DEFAULT_ENCODING
 )
@@ -202,7 +202,7 @@ class RegressionDataProcessor:
         self,
         df: pd.DataFrame,
         columns: List[str],
-        group_by: str,
+        group_by: Union[str, List[str]],
         lags: List[int] = [1, 2, 3]
     ) -> pd.DataFrame:
         """
@@ -211,29 +211,23 @@ class RegressionDataProcessor:
         Args:
             df: Input DataFrame
             columns: Columns to create lags for
-            group_by: Column to group by (e.g., 'company_id')
+            group_by: Column or list of columns to group by (e.g., 'company_id' or ['company_id', 'region'])
             lags: List of lag periods
-            
-        Returns:
-            DataFrame with added lag features
         """
         df = df.copy()
-        
-        # Sort by group and date
-        df = df.sort_values([group_by, 'year'])
-        
-        # Create lag features
+        # Ensure group_by is a list for sorting
+        sort_cols = [group_by] if isinstance(group_by, str) else list(group_by)
+        df = df.sort_values(sort_cols + ['year'])
         for col in columns:
             for lag in lags:
                 df[f'{col}_lag_{lag}'] = df.groupby(group_by)[col].shift(lag)
-        
         return df
     
     def create_rolling_features(
         self,
         df: pd.DataFrame,
         columns: List[str],
-        group_by: str,
+        group_by: Union[str, List[str]],
         windows: List[int] = [2, 3]
     ) -> pd.DataFrame:
         """
@@ -242,30 +236,20 @@ class RegressionDataProcessor:
         Args:
             df: Input DataFrame
             columns: Columns to create rolling features for
-            group_by: Column to group by
+            group_by: Column or list of columns to group by
             windows: List of window sizes
-            
-        Returns:
-            DataFrame with added rolling features
         """
         df = df.copy()
-        
-        # Sort by group and date
-        df = df.sort_values([group_by, 'year'])
-        
-        # Create rolling features
+        sort_cols = [group_by] if isinstance(group_by, str) else list(group_by)
+        df = df.sort_values(sort_cols + ['year'])
         for col in columns:
             for window in windows:
-                # Rolling mean
                 df[f'{col}_rolling_mean_{window}'] = df.groupby(group_by)[col].transform(
                     lambda x: x.rolling(window=window, min_periods=1).mean()
                 )
-                
-                # Rolling std
                 df[f'{col}_rolling_std_{window}'] = df.groupby(group_by)[col].transform(
                     lambda x: x.rolling(window=window, min_periods=1).std()
                 )
-        
         return df
 
 
@@ -278,11 +262,11 @@ def preprocess_pipeline(
     target_column: str,
     date_column: Optional[str] = None,
     identifier_columns: Optional[List[str]] = None,
-    group_by: Optional[str] = None,
+    group_by: Optional[Union[str, List[str]]] = None,
     create_time_features: bool = True,
     create_lag_features: bool = True,
     create_rolling_features: bool = True
-) -> None:
+) -> pd.DataFrame:
     """
     Complete preprocessing pipeline.
     
@@ -294,7 +278,7 @@ def preprocess_pipeline(
         target_column: Name of target column
         date_column: Name of date column
         identifier_columns: List of identifier columns
-        group_by: Column to group by for time series features
+        group_by: Column or list of columns to group by for time series features
         create_time_features: Whether to create time features
         create_lag_features: Whether to create lag features
         create_rolling_features: Whether to create rolling features
@@ -336,5 +320,6 @@ def preprocess_pipeline(
         )
     
     # Save processed data
-    safe_save_csv(df, output_path, "preprocessed data")
+    safe_save_csv(df, output_path, encoding=DEFAULT_ENCODING)
+    return df
     logger.info(f"Preprocessing completed. Final shape: {df.shape}") 
