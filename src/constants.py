@@ -35,10 +35,7 @@ DEFAULT_ROLLING_WINDOWS = [2, 3]
 # Risk types
 RISK_TYPES = [
     'normal',
-    'liquidity_risk',
-    'financial_structure',
-    'management_dispute',
-    'other'
+    'alarm'
 ]
 
 # Model hyperparameters
@@ -49,8 +46,8 @@ XGBOOST_CLASSIFIER_PARAMS = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'min_child_weight': 1,
-    'objective': 'multi:softprob',
-    'eval_metric': 'mlogloss',
+    'objective': 'binary:logistic',
+    'eval_metric': 'logloss',
     'verbosity': 0
 }
 
@@ -73,8 +70,8 @@ LIGHTGBM_CLASSIFIER_PARAMS = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'min_child_weight': 1,
-    'objective': 'multiclass',
-    'metric': 'multi_logloss',
+    'objective': 'binary:logistic',
+    'metric': 'logloss',
     'verbosity': -1
 }
 

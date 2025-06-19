@@ -67,13 +67,10 @@ def main():
         # Create necessary directories
         setup_directories()
         
-        # Load and preprocess data
-        input_data = load_data("data/raw/input_data.csv")
-        
         # Preprocess data
         logger.info("Preprocessing data...")
         processed_data = preprocess_pipeline(
-            input_path=input_data,
+            input_path="data/raw/input_data.csv",
             output_path="data/processed/processed_data.csv",
             numeric_columns=[
                 # Add your numeric columns here
@@ -92,7 +89,12 @@ def main():
         )
         
         # Prepare features and targets
-        X = processed_data.drop(['days_with_alarm', 'date', 'company_id'], axis=1)
+        # Note: After preprocessing, categorical columns will be one-hot encoded
+        # Only drop columns that are guaranteed to exist
+        columns_to_drop = ['days_with_alarm', 'date', 'company_id']
+        available_columns = [col for col in columns_to_drop if col in processed_data.columns]
+        
+        X = processed_data.drop(available_columns, axis=1)
         y1 = (processed_data['days_with_alarm'] > 0).astype(int)  # Binary classification target
         y2 = processed_data['days_with_alarm']  # Regression target
         

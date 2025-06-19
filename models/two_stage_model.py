@@ -14,8 +14,8 @@ from sklearn.base import BaseEstimator
 from sklearn.metrics import f1_score, precision_score, recall_score, mean_squared_error, mean_absolute_error
 import xgboost as xgb
 import lightgbm as lgb
-from ..src.constants import (
-    MODEL_TYPES,
+from src.constants import (
+    AVAILABLE_MODEL_TYPES,
     XGBOOST_CLASSIFIER_PARAMS,
     XGBOOST_REGRESSOR_PARAMS,
     LIGHTGBM_CLASSIFIER_PARAMS,
@@ -43,10 +43,10 @@ class TwoStageModel:
             stage1_params: Optional parameters for stage 1 model
             stage2_params: Optional parameters for stage 2 model
         """
-        if stage1_model_type not in MODEL_TYPES:
-            raise ValueError(f"Invalid stage1_model_type. Must be one of {MODEL_TYPES}")
-        if stage2_model_type not in MODEL_TYPES:
-            raise ValueError(f"Invalid stage2_model_type. Must be one of {MODEL_TYPES}")
+        if stage1_model_type not in AVAILABLE_MODEL_TYPES:
+            raise ValueError(f"Invalid stage1_model_type. Must be one of {AVAILABLE_MODEL_TYPES}")
+        if stage2_model_type not in AVAILABLE_MODEL_TYPES:
+            raise ValueError(f"Invalid stage2_model_type. Must be one of {AVAILABLE_MODEL_TYPES}")
             
         self.stage1_model_type = stage1_model_type
         self.stage2_model_type = stage2_model_type
