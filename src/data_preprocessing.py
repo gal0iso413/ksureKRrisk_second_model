@@ -5,6 +5,8 @@ This module provides comprehensive data preprocessing functionality including:
 - Regression-specific preprocessing
 - Zero-inflated data handling
 - Feature engineering for time series data
+- Outlier handling using IQR method
+- Factor level conversion
 """
 
 import pandas as pd
@@ -13,20 +15,133 @@ from typing import List, Optional, Tuple, Dict, Union
 from pathlib import Path
 from sklearn.preprocessing import StandardScaler, MinMaxScaler
 from sklearn.impute import SimpleImputer
+import logging
 
 # Import project utilities
-from src.utils.logging_config import get_logger
-from src.utils.common import (
+from utils.logging_config import get_logger
+from utils.common import (
     safe_load_csv, safe_save_csv, clean_column_names,
     standardize_error_handling, create_directory_if_not_exists
 )
-from src.constants import (
+from constants import (
     DEFAULT_RANDOM_STATE, DEFAULT_SCALER_TYPE,
     DEFAULT_ENCODING_METHOD, DEFAULT_ENCODING
 )
 
 # Initialize logger
 logger = get_logger(__name__)
+
+class OutlierHandler:
+    """Class for handling outliers using IQR method."""
+    
+    @staticmethod
+    @standardize_error_handling
+    def handle_outliers_iqr(
+        df: pd.DataFrame,
+        columns: List[str],
+        threshold: float = 1.5
+    ) -> pd.DataFrame:
+        """
+        Handle outliers using IQR method.
+        
+        Args:
+            df: Input DataFrame
+            columns: List of numeric columns to handle outliers for
+            threshold: IQR multiplier threshold (default: 1.5)
+            
+        Returns:
+            DataFrame with outliers handled
+        """
+        df = df.copy()
+        
+        for col in columns:
+            if col not in df.columns:
+                logger.warning(f"Column '{col}' not found, skipping outlier handling")
+                continue
+                
+            if not pd.api.types.is_numeric_dtype(df[col]):
+                logger.warning(f"Column '{col}' is not numeric, skipping outlier handling")
+                continue
+            
+            # Calculate IQR
+            Q1 = df[col].quantile(0.25)
+            Q3 = df[col].quantile(0.75)
+            IQR = Q3 - Q1
+            
+            # Define bounds
+            lower_bound = Q1 - threshold * IQR
+            upper_bound = Q3 + threshold * IQR
+            
+            # Count outliers before handling
+            outliers_count = ((df[col] < lower_bound) | (df[col] > upper_bound)).sum()
+            
+            # Cap outliers
+            df[col] = df[col].clip(lower=lower_bound, upper=upper_bound)
+            
+            if outliers_count > 0:
+                logger.info(f"Handled {outliers_count} outliers in '{col}' using IQR method")
+        
+        return df
+
+
+class FactorLevelConverter:
+    """Class for converting factor codes to factor levels."""
+    
+    @staticmethod
+    @standardize_error_handling
+    def convert_to_factor_level(
+        df: pd.DataFrame,
+        factor_code_prefix: str = '발생사유항목코드_',
+        output_column: str = 'factor_level'
+    ) -> pd.DataFrame:
+        """
+        Convert factor codes to factor levels based on count.
+        
+        Args:
+            df: Input DataFrame
+            factor_code_prefix: Prefix for factor code columns
+            output_column: Name of output factor level column
+            
+        Returns:
+            DataFrame with factor_level column added
+        """
+        df = df.copy()
+        
+        # Find all factor code columns
+        factor_columns = [col for col in df.columns if col.startswith(factor_code_prefix)]
+        
+        if not factor_columns:
+            logger.warning(f"No columns found with prefix '{factor_code_prefix}'")
+            df[output_column] = 0
+            return df
+        
+        logger.info(f"Found {len(factor_columns)} factor code columns: {factor_columns}")
+        
+        # Count non-zero/non-null values in factor columns
+        factor_counts = df[factor_columns].notna().sum(axis=1)
+        
+        # Convert to factor levels (0-4)
+        # This mapping can be adjusted based on your specific requirements
+        def map_to_factor_level(count):
+            if count == 0:
+                return 0
+            elif count <= 2:
+                return 1
+            elif count <= 4:
+                return 2
+            elif count <= 6:
+                return 3
+            else:
+                return 4
+        
+        df[output_column] = factor_counts.apply(map_to_factor_level)
+        
+        # Log distribution
+        level_distribution = df[output_column].value_counts().sort_index()
+        logger.info(f"Factor level distribution: {level_distribution.to_dict()}")
+        
+        return df
+
 
 class RegressionDataProcessor:
     """Class for regression-specific data preprocessing."""
@@ -55,7 +170,10 @@ class RegressionDataProcessor:
         numeric_columns: List[str],
         categorical_columns: List[str],
         target_column: str,
-        identifier_columns: Optional[List[str]] = None
+        identifier_columns: Optional[List[str]] = None,
+        handle_outliers: bool = True,
+        outlier_columns: Optional[List[str]] = None,
+        create_factor_level: bool = True
     ) -> pd.DataFrame:
         """
         Preprocess features for regression model.
@@ -66,6 +184,9 @@ class RegressionDataProcessor:
             categorical_columns: List of categorical columns
             target_column: Name of target column
             identifier_columns: List of identifier columns to preserve
+            handle_outliers: Whether to handle outliers
+            outlier_columns: Specific columns for outlier handling (if None, uses numeric_columns)
+            create_factor_level: Whether to create factor level column
             
         Returns:
             Preprocessed DataFrame
@@ -78,6 +199,15 @@ class RegressionDataProcessor:
         # Handle identifier columns
         if identifier_columns:
             identifier_data = df[identifier_columns].copy()
+        
+        # Handle outliers if requested
+        if handle_outliers:
+            outlier_cols = outlier_columns or numeric_columns
+            df = OutlierHandler.handle_outliers_iqr(df, outlier_cols)
+        
+        # Create factor level if requested
+        if create_factor_level:
+            df = FactorLevelConverter.convert_to_factor_level(df)
         
         # Process numeric features
         if numeric_columns:
@@ -265,7 +395,10 @@ def preprocess_pipeline(
     group_by: Optional[Union[str, List[str]]] = None,
     create_time_features: bool = True,
     create_lag_features: bool = True,
-    create_rolling_features: bool = True
+    create_rolling_features: bool = True,
+    handle_outliers: bool = True,
+    outlier_columns: Optional[List[str]] = None,
+    create_factor_level: bool = True
 ) -> pd.DataFrame:
     """
     Complete preprocessing pipeline.
@@ -282,6 +415,9 @@ def preprocess_pipeline(
         create_time_features: Whether to create time features
         create_lag_features: Whether to create lag features
         create_rolling_features: Whether to create rolling features
+        handle_outliers: Whether to handle outliers
+        outlier_columns: Specific columns for outlier handling (if None, uses numeric_columns)
+        create_factor_level: Whether to create factor level column
     """
     # Read data
     df = safe_load_csv(input_path, encoding=DEFAULT_ENCODING)
@@ -296,7 +432,10 @@ def preprocess_pipeline(
         numeric_columns=numeric_columns,
         categorical_columns=categorical_columns,
         target_column=target_column,
-        identifier_columns=identifier_columns
+        identifier_columns=identifier_columns,
+        handle_outliers=handle_outliers,
+        outlier_columns=outlier_columns,
+        create_factor_level=create_factor_level
     )
     
     # Create time features
@@ -321,5 +460,6 @@ def preprocess_pipeline(
     
     # Save processed data
     safe_save_csv(df, output_path, encoding=DEFAULT_ENCODING)
-    return df
-    logger.info(f"Preprocessing completed. Final shape: {df.shape}") 
+    logger.info(f"Preprocessing completed. Final shape: {df.shape}")
+    
+    return df 

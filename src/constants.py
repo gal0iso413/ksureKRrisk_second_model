@@ -70,7 +70,7 @@ LIGHTGBM_CLASSIFIER_PARAMS = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'min_child_weight': 1,
-    'objective': 'binary:logistic',
+    'objective': 'binary',
     'metric': 'logloss',
     'verbosity': -1
 }

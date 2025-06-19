@@ -2,7 +2,7 @@
 Main execution script for the second model.
 
 This script demonstrates how to use the two-stage model for risk prediction
-and duration estimation.
+and duration estimation with comprehensive preprocessing and visualization.
 """
 
 import logging
@@ -14,6 +14,7 @@ from src.data_preprocessing import preprocess_pipeline
 from models.two_stage_model import TwoStageModel
 from src.utils.logging_config import setup_logger
 from src.utils.common import validate_dataframe
+from src.visualization import create_visualization_pipeline
 
 def setup_directories():
     """Create necessary directories if they don't exist."""
@@ -21,7 +22,8 @@ def setup_directories():
         "data/raw",
         "data/processed",
         "logs",
-        "models/saved"
+        "models/saved",
+        "results"
     ]
     for directory in directories:
         Path(directory).mkdir(parents=True, exist_ok=True)
@@ -67,8 +69,8 @@ def main():
         # Create necessary directories
         setup_directories()
         
-        # Preprocess data
-        logger.info("Preprocessing data...")
+        # Preprocess data with new functionality
+        logger.info("Preprocessing data with outlier handling and factor level conversion...")
         processed_data = preprocess_pipeline(
             input_path="data/raw/input_data.csv",
             output_path="data/processed/processed_data.csv",
@@ -85,7 +87,10 @@ def main():
             target_column='days_with_alarm',
             date_column='date',
             identifier_columns=['company_id'],
-            group_by='company_id'
+            group_by='company_id',
+            handle_outliers=True,  # Enable outlier handling
+            outlier_columns=None,  # Use all numeric columns for outlier handling
+            create_factor_level=True  # Enable factor level conversion
         )
         
         # Prepare features and targets
@@ -136,7 +141,24 @@ def main():
             for feature, score in sorted(features.items(), key=lambda x: x[1], reverse=True):
                 logger.info(f"{feature}: {score:.4f}")
         
-        logger.info("Model training and evaluation completed successfully")
+        # Create comprehensive visualizations
+        logger.info("Creating visualizations...")
+        create_visualization_pipeline(
+            model=model,
+            X_train=X_train,
+            X_test=X_test,
+            y1_train=y1_train,
+            y1_test=y1_test,
+            y2_train=y2_train,
+            y2_test=y2_test,
+            metrics=metrics,
+            importance_dict=importance,
+            output_dir="results",
+            model_name="two_stage_model"
+        )
+        
+        logger.info("Model training, evaluation, and visualization completed successfully")
+        logger.info(f"Results saved to: {Path('results').absolute()}")
         
     except Exception as e:
         logger.error(f"Error in main execution: {str(e)}")
