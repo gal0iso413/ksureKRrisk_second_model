@@ -47,8 +47,9 @@ XGBOOST_CLASSIFIER_PARAMS = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'min_child_weight': 1,
-    'objective': 'binary:logistic',
-    'eval_metric': 'logloss',
+    'objective': 'multi:softmax',
+    'eval_metric': 'mlogloss',
+    'num_class': 5,
     'verbosity': 0
 }
 
@@ -59,8 +60,8 @@ XGBOOST_REGRESSOR_PARAMS = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'min_child_weight': 1,
-    'objective': 'reg:squarederror',
-    'eval_metric': 'rmse',
+    'objective': 'reg:tweedie',
+    'eval_metric': 'rmsle',
     'verbosity': 0
 }
 
@@ -71,8 +72,9 @@ LIGHTGBM_CLASSIFIER_PARAMS = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'min_child_weight': 1,
-    'objective': 'binary',
-    'metric': 'logloss',
+    'objective': 'multiclass',
+    'metric': 'multi_logloss',
+    'num_class': 3,
     'verbosity': -1
 }
 
@@ -83,8 +85,8 @@ LIGHTGBM_REGRESSOR_PARAMS = {
     'subsample': 0.8,
     'colsample_bytree': 0.8,
     'min_child_weight': 1,
-    'objective': 'regression',
-    'metric': 'rmse',
+    'objective': 'tweedie',
+    'metric': 'rmsle',
     'verbosity': -1
 }
 

@@ -24,6 +24,18 @@ from src.constants import (
 
 logger = logging.getLogger(__name__)
 
+def rmsle(y_true, y_pred):
+    """Calculate Root Mean Squared Logarithmic Error."""
+    # Ensure positive values for log
+    y_true = np.maximum(y_true, 1e-7)
+    y_pred = np.maximum(y_pred, 1e-7)
+    
+    # Calculate RMSLE
+    log_true = np.log(y_true + 1)
+    log_pred = np.log(y_pred + 1)
+    squared_diff = (log_true - log_pred) ** 2
+    return np.sqrt(np.mean(squared_diff))
+
 class TwoStageModel:
     """Two-stage model for risk prediction and duration estimation."""
     
@@ -169,9 +181,9 @@ class TwoStageModel:
         
         # Stage 1 metrics
         metrics = {
-            'stage1_f1': f1_score(y1_true, y1_pred, average='weighted'),
-            'stage1_precision': precision_score(y1_true, y1_pred, average='weighted'),
-            'stage1_recall': recall_score(y1_true, y1_pred, average='weighted')
+            'stage1_f1': f1_score(y1_true, y1_pred, average='weighted', zero_division=0),
+            'stage1_precision': precision_score(y1_true, y1_pred, average='weighted', zero_division=0),
+            'stage1_recall': recall_score(y1_true, y1_pred, average='weighted', zero_division=0)
         }
         
         # Stage 2 metrics (only on non-normal cases)
@@ -179,7 +191,8 @@ class TwoStageModel:
         if non_normal_mask.any():
             metrics.update({
                 'stage2_rmse': np.sqrt(mean_squared_error(y2_true[non_normal_mask], y2_pred[non_normal_mask])),
-                'stage2_mae': mean_absolute_error(y2_true[non_normal_mask], y2_pred[non_normal_mask])
+                'stage2_mae': mean_absolute_error(y2_true[non_normal_mask], y2_pred[non_normal_mask]),
+                'stage2_rmsle': rmsle(y2_true[non_normal_mask], y2_pred[non_normal_mask])
             })
             
         return metrics

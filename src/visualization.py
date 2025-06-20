@@ -28,6 +28,7 @@ sns.set_palette("husl")
 # Set up Korean font
 plt.rcParams['font.family'] = KOREAN_FONT_CONFIG['font_family']
 plt.rcParams['font.size'] = KOREAN_FONT_CONFIG['font_size']
+plt.rcParams['axes.unicode_minus'] = False
 
 logger = logging.getLogger(__name__)
 
