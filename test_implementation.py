@@ -3,7 +3,6 @@ Test script to verify the implementation of new features.
 
 This script tests:
 - Outlier handling with IQR method
-- Factor level conversion
 - Visualization pipeline
 - SHAP analysis
 """
@@ -14,7 +13,7 @@ from pathlib import Path
 import logging
 
 # Import the modules to test
-from src.data_preprocessing import OutlierHandler, FactorLevelConverter, preprocess_pipeline
+from src.data_preprocessing import OutlierHandler, preprocess_pipeline
 from src.visualization import ModelVisualizer
 from models.two_stage_model import TwoStageModel
 from src.utils.logging_config import setup_logger
@@ -26,7 +25,7 @@ logger = setup_logger(
 )
 
 def create_test_data():
-    """Create test data with factor codes and outliers."""
+    """Create test data with alarm types and days."""
     np.random.seed(42)
     
     # Create sample data
@@ -34,16 +33,13 @@ def create_test_data():
     data = {
         'date': pd.date_range('2020-01-01', periods=n_samples, freq='D'),
         'company_id': np.random.randint(1, 11, n_samples),
-        'days_with_alarm': np.random.exponential(5, n_samples),
+        'alarm_type': np.random.choice(['normal', 'warning', 'critical'], n_samples, p=[0.7, 0.2, 0.1]),
+        'alarm_day': np.random.exponential(5, n_samples),
         'feature1': np.random.normal(100, 20, n_samples),
         'feature2': np.random.normal(50, 10, n_samples),
         'category1': np.random.choice(['A', 'B', 'C'], n_samples),
         'category2': np.random.choice(['X', 'Y', 'Z'], n_samples),
     }
-    
-    # Add factor codes (some will be null)
-    for i in range(1, 6):
-        data[f'발생사유항목코드_{i}'] = np.random.choice([None, f'CODE_{i}'], n_samples, p=[0.7, 0.3])
     
     # Add some outliers
     data['feature1'][0:10] = np.random.normal(500, 50, 10)  # Outliers
@@ -80,28 +76,6 @@ def test_outlier_handling():
     assert cleaned_outliers == 0, "Outliers should be handled"
     logger.info("✓ Outlier handling test passed")
 
-def test_factor_level_conversion():
-    """Test factor level conversion functionality."""
-    logger.info("Testing factor level conversion...")
-    
-    df = create_test_data()
-    
-    # Test factor level conversion
-    df_with_levels = FactorLevelConverter.convert_to_factor_level(df)
-    
-    # Check if factor_level column was created
-    assert 'factor_level' in df_with_levels.columns, "factor_level column should be created"
-    
-    # Check factor level distribution
-    level_distribution = df_with_levels['factor_level'].value_counts().sort_index()
-    logger.info(f"Factor level distribution: {level_distribution.to_dict()}")
-    
-    # Check that levels are in expected range
-    assert df_with_levels['factor_level'].min() >= 0, "Factor levels should be >= 0"
-    assert df_with_levels['factor_level'].max() <= 4, "Factor levels should be <= 4"
-    
-    logger.info("✓ Factor level conversion test passed")
-
 def test_preprocessing_pipeline():
     """Test the complete preprocessing pipeline."""
     logger.info("Testing preprocessing pipeline...")
@@ -115,17 +89,15 @@ def test_preprocessing_pipeline():
         output_path="data/processed/test_processed.csv",
         numeric_columns=['feature1', 'feature2'],
         categorical_columns=['category1', 'category2'],
-        target_column='days_with_alarm',
+        target_column='alarm_day',
         date_column='date',
         identifier_columns=['company_id'],
         group_by='company_id',
-        handle_outliers=True,
-        create_factor_level=True
+        handle_outliers=True
     )
     
     # Check if processing was successful
     assert not processed_df.empty, "Processed DataFrame should not be empty"
-    assert 'factor_level' in processed_df.columns, "factor_level should be in processed data"
     
     logger.info(f"Processed data shape: {processed_df.shape}")
     logger.info("✓ Preprocessing pipeline test passed")
@@ -139,8 +111,8 @@ def test_visualization():
     
     # Create a simple model for testing
     X = df[['feature1', 'feature2']].fillna(0)
-    y1 = (df['days_with_alarm'] > 5).astype(int)
-    y2 = df['days_with_alarm']
+    y1 = (df['alarm_type'] != 'normal').astype(int)  # Binary classification
+    y2 = df['alarm_day']  # Regression target
     
     # Train a simple model
     model = TwoStageModel()
@@ -215,24 +187,22 @@ def test_preprocessing_only():
     create_test_data()
     
     # Test preprocessing pipeline only
-    from main import preprocess_pipeline
+    from src.data_preprocessing import preprocess_pipeline
     
     processed_data = preprocess_pipeline(
         input_path="data/raw/test_data.csv",
         output_path="data/processed/test_preprocess_only.csv",
         numeric_columns=['feature1', 'feature2'],
         categorical_columns=['category1', 'category2'],
-        target_column='days_with_alarm',
+        target_column='alarm_day',
         date_column='date',
         identifier_columns=['company_id'],
         group_by='company_id',
-        handle_outliers=True,
-        create_factor_level=True
+        handle_outliers=True
     )
     
     # Verify preprocessing results
     assert not processed_data.empty, "Processed data should not be empty"
-    assert 'factor_level' in processed_data.columns, "factor_level should be in processed data"
     
     logger.info(f"✓ Preprocessing-only test passed - data shape: {processed_data.shape}")
 
@@ -248,7 +218,6 @@ def main():
         
         # Run tests
         test_outlier_handling()
-        test_factor_level_conversion()
         test_preprocessing_pipeline()
         test_visualization()
         test_pipeline_separation()  # Test training with evaluation

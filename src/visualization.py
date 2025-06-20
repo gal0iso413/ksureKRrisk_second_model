@@ -19,11 +19,15 @@ import logging
 import shap
 
 from utils.common import create_directory_if_not_exists
-from constants import DEFAULT_RANDOM_STATE
+from constants import DEFAULT_RANDOM_STATE, KOREAN_FONT_CONFIG, RISK_TYPES
 
 # Set up plotting style
 plt.style.use('seaborn-v0_8')
 sns.set_palette("husl")
+
+# Set up Korean font
+plt.rcParams['font.family'] = KOREAN_FONT_CONFIG['font_family']
+plt.rcParams['font.size'] = KOREAN_FONT_CONFIG['font_size']
 
 logger = logging.getLogger(__name__)
 
@@ -99,7 +103,7 @@ class ModelVisualizer:
             plt.savefig(plot_path, dpi=300, bbox_inches='tight')
             logger.info(f"Saved model metrics plot to {plot_path}")
         
-        plt.show()
+        plt.close()  # Close the figure instead of showing
     
     def plot_feature_importance(
         self,
@@ -148,7 +152,7 @@ class ModelVisualizer:
             plt.savefig(plot_path, dpi=300, bbox_inches='tight')
             logger.info(f"Saved feature importance plot to {plot_path}")
         
-        plt.show()
+        plt.close()  # Close the figure instead of showing
     
     def plot_shap_analysis(
         self,
@@ -203,7 +207,7 @@ class ModelVisualizer:
                 plt.savefig(plot_path, dpi=300, bbox_inches='tight')
                 logger.info(f"Saved SHAP summary plot to {plot_path}")
             
-            plt.show()
+            plt.close()  # Close the figure instead of showing
             
         except Exception as e:
             logger.error(f"Error creating SHAP plot for {stage}: {str(e)}")
@@ -255,7 +259,7 @@ class ModelVisualizer:
                 plt.savefig(plot_path, dpi=300, bbox_inches='tight')
                 logger.info(f"Saved prediction vs actual plot to {plot_path}")
             
-            plt.show()
+            plt.close()  # Close the figure instead of showing
         
         elif stage == "stage1":  # Classification
             from sklearn.metrics import confusion_matrix
@@ -279,7 +283,7 @@ class ModelVisualizer:
                 plt.savefig(plot_path, dpi=300, bbox_inches='tight')
                 logger.info(f"Saved confusion matrix plot to {plot_path}")
             
-            plt.show()
+            plt.close()  # Close the figure instead of showing
 
 
 def create_visualization_pipeline(

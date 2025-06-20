@@ -33,10 +33,11 @@ DEFAULT_LAG_PERIODS = [1, 2, 3]
 DEFAULT_ROLLING_WINDOWS = [2, 3]
 
 # Risk types
-RISK_TYPES = [
-    'normal',
-    'alarm'
-]
+RISK_TYPES = {
+    'normal': 0,
+    'warning': 1,
+    'critical': 2
+}
 
 # Model hyperparameters
 XGBOOST_CLASSIFIER_PARAMS = {
@@ -122,4 +123,10 @@ LIGHTGBM_REGRESSOR_SEARCH_SPACE = {
     'subsample': [0.6, 0.8, 1.0],
     'colsample_bytree': [0.6, 0.8, 1.0],
     'min_child_weight': [1, 3, 5]
+}
+
+# Korean font configuration
+KOREAN_FONT_CONFIG = {
+    'font_family': 'NanumGothic',
+    'font_size': 12
 } 

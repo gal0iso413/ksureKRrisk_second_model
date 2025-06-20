@@ -1,9 +1,9 @@
 # Second Model: Two-Stage Risk Prediction
 
-This model implements a two-stage approach for predicting risk types and their durations:
+This model implements a two-stage approach for predicting alarm types and their durations:
 
-1. First Stage: Classification model to predict risk type
-2. Second Stage: Regression model to predict duration for non-normal cases
+1. First Stage: Classification model to predict alarm type
+2. Second Stage: Regression model to predict alarm duration for non-normal cases
 
 ## Project Structure
 
@@ -33,8 +33,8 @@ second_model/
 
 ### Core Features
 1. **Two-Stage Modeling**
-   - Stage 1: Predicts risk type (classification)
-   - Stage 2: Predicts duration for non-normal cases (regression)
+   - Stage 1: Predicts alarm type (classification)
+   - Stage 2: Predicts alarm duration for non-normal cases (regression)
 
 2. **Data Preprocessing**
    - Regression-specific preprocessing
@@ -60,25 +60,20 @@ second_model/
    - Configurable IQR threshold (default: 1.5)
    - Applied to numeric columns during preprocessing
 
-6. **Factor Level Conversion**
-   - Converts factor codes (`발생사유항목코드_1`, `발생사유항목코드_2`, etc.) to factor levels (0-4)
-   - Based on count of non-null factor codes
-   - Mapping: 0=no codes, 1=1-2 codes, 2=3-4 codes, 3=5-6 codes, 4=7+ codes
-
-7. **Comprehensive Visualization Pipeline**
+6. **Comprehensive Visualization Pipeline**
    - Model metrics plots for both stages
    - Feature importance plots
    - SHAP analysis plots for model interpretability
    - Prediction vs actual plots
    - Confusion matrix for classification
 
-8. **SHAP Analysis Integration**
+7. **SHAP Analysis Integration**
    - SHAP summary plots for both model stages
    - Focus on stage 2 (regression) as requested
    - Automatic sampling for large datasets
    - Support for XGBoost and LightGBM models
 
-9. **Automatic Result Management**
+8. **Automatic Result Management**
    - Auto-creates organized result folders
    - Saves all plots and analysis results
    - Structured output organization
@@ -156,12 +151,11 @@ processed_data = preprocess_pipeline(
     output_path='data/processed/processed_data.csv',
     numeric_columns=['feature1', 'feature2'],
     categorical_columns=['category1', 'category2'],
-    target_column='duration',
+    target_column='alarm_day',
     date_column='date',
     identifier_columns=['company_id'],
     group_by=['company_id', 'region'],
-    handle_outliers=True,      # Enable outlier handling
-    create_factor_level=True   # Enable factor level conversion
+    handle_outliers=True      # Enable outlier handling
 )
 ```
 
@@ -175,17 +169,6 @@ df_cleaned = OutlierHandler.handle_outliers_iqr(
     df=df,
     columns=['feature1', 'feature2'],
     threshold=1.5
-)
-```
-
-#### Factor Level Conversion
-```python
-from src.data_preprocessing import FactorLevelConverter
-
-df_with_levels = FactorLevelConverter.convert_to_factor_level(
-    df=df,
-    factor_code_prefix='발생사유항목코드_',
-    output_column='factor_level'
 )
 ```
 
@@ -222,17 +205,31 @@ model = TwoStageModel(
 # Train model
 model.fit(
     X=features,
-    y1=risk_types,
-    y2=durations,
+    y1=alarm_types,      # Stage 1: Classification target
+    y2=alarm_days,       # Stage 2: Regression target
     feature_names=feature_names
 )
 
 # Make predictions
-risk_types, durations = model.predict(X_test)
+alarm_types, alarm_days = model.predict(X_test)
 
 # Evaluate model
 metrics = model.evaluate(X_test, y1_test, y2_test)
 ```
+
+## Data Requirements
+
+### Required Columns
+Your input data should include:
+- `date`: Date column for time series features
+- `company_id`: Company identifier for grouping
+- `alarm_type`: Stage 1 target (classification) - e.g., 'normal', 'warning', 'critical'
+- `alarm_day`: Stage 2 target (regression) - number of days with alarm
+
+### Data Preprocessing
+- Factor level conversion should be done outside the ML pipeline
+- Provide clean, preprocessed data as input
+- The pipeline focuses on ML-specific preprocessing (outliers, scaling, encoding)
 
 ## Dependencies
 
@@ -254,6 +251,7 @@ shap==0.46.0
 matplotlib==3.10.0
 matplotlib-inline==0.1.6
 seaborn==0.13.2
+joblib>=1.1.0
 ```
 
 ## Configuration
@@ -266,23 +264,6 @@ Key configuration parameters can be found in `src/constants.py`:
 - Risk types
 
 ### New Configuration Options
-
-#### Factor Level Mapping
-Adjust the factor level mapping in `src/data_preprocessing.py`:
-
-```python
-def map_to_factor_level(count):
-    if count == 0:
-        return 0
-    elif count <= 2:
-        return 1
-    elif count <= 4:
-        return 2
-    elif count <= 6:
-        return 3
-    else:
-        return 4
-```
 
 #### Outlier Threshold
 Adjust the IQR threshold in `OutlierHandler.handle_outliers_iqr()` (default: 1.5).
@@ -316,7 +297,6 @@ python test_implementation.py
 
 This script tests:
 - Outlier handling functionality
-- Factor level conversion
 - Complete preprocessing pipeline
 - Visualization generation
 
@@ -325,7 +305,7 @@ This script tests:
 The model handles zero-inflated data through:
 
 1. Two-stage approach:
-   - First stage identifies if there will be a risk
+   - First stage identifies if there will be an alarm
    - Second stage predicts duration only for non-normal cases
 
 2. Special preprocessing:
@@ -373,7 +353,7 @@ The model provides comprehensive evaluation metrics:
 
 All new features include comprehensive error handling:
 
-- Graceful handling of missing factor codes
+- Graceful handling of missing data
 - Automatic skipping of time series features when insufficient data
 - Robust outlier detection and handling
 - Comprehensive logging throughout the pipeline

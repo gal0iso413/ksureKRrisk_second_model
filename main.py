@@ -5,6 +5,10 @@ This script demonstrates how to use the two-stage model for risk prediction
 and duration estimation with comprehensive preprocessing and visualization.
 """
 
+# Set matplotlib backend to avoid Qt issues
+import matplotlib
+matplotlib.use('agg')  # Use non-interactive backend
+
 import logging
 from pathlib import Path
 import pandas as pd
@@ -51,7 +55,8 @@ def load_data(data_path: str) -> pd.DataFrame:
     required_columns = [
         'date',
         'company_id',
-        'days_with_alarm',  # Target variable
+        'alarm_type',   # Stage 1 target: classification
+        'alarm_day',    # Stage 2 target: regression
         # Add other required columns here
     ]
     
@@ -69,8 +74,8 @@ def main():
         # Create necessary directories
         setup_directories()
         
-        # Preprocess data with new functionality
-        logger.info("Preprocessing data with outlier handling and factor level conversion...")
+        # Preprocess data with outlier handling
+        logger.info("Preprocessing data with outlier handling...")
         processed_data = preprocess_pipeline(
             input_path="data/raw/input_data.csv",
             output_path="data/processed/processed_data.csv",
@@ -84,24 +89,23 @@ def main():
                 'category1',
                 'category2'
             ],
-            target_column='days_with_alarm',
+            target_column='alarm_day',  # Stage 2 regression target
             date_column='date',
             identifier_columns=['company_id'],
             group_by='company_id',
             handle_outliers=True,  # Enable outlier handling
-            outlier_columns=None,  # Use all numeric columns for outlier handling
-            create_factor_level=True  # Enable factor level conversion
+            outlier_columns=None   # Use all numeric columns for outlier handling
         )
         
         # Prepare features and targets
         # Note: After preprocessing, categorical columns will be one-hot encoded
         # Only drop columns that are guaranteed to exist
-        columns_to_drop = ['days_with_alarm', 'date', 'company_id']
+        columns_to_drop = ['alarm_type', 'alarm_day', 'date', 'company_id']
         available_columns = [col for col in columns_to_drop if col in processed_data.columns]
         
         X = processed_data.drop(available_columns, axis=1)
-        y1 = (processed_data['days_with_alarm'] > 0).astype(int)  # Binary classification target
-        y2 = processed_data['days_with_alarm']  # Regression target
+        y1 = processed_data['alarm_type']  # Stage 1: Classification target
+        y2 = processed_data['alarm_day']   # Stage 2: Regression target
         
         # Split data
         X_train, X_test, y1_train, y1_test, y2_train, y2_test = train_test_split(
